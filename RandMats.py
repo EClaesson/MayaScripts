@@ -11,9 +11,6 @@ matSelWnd = None
 selObjs = None
 selMats = None
 
-cmds.select(clear=True)
-openObjSelWnd()
-
 def _str(obj):
     return str(obj).replace("u'", "'").replace(": ", "->").replace("'", "").replace("|", "")
 
@@ -57,3 +54,6 @@ def assignMaterials():
         cmds.hyperShade(assign=mat)
         
     print "RandMats result: " + _str(assignResult)
+	
+cmds.select(clear=True)
+openObjSelWnd()
