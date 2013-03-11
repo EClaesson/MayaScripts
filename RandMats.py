@@ -6,13 +6,16 @@ import maya.cmds as cmds
 import random
 
 selectedObjects = set()
-selectedMaterials = []
+selectedMaterials = set()
 
 selectedObjectsList = None
 selectedMaterialsList = None
 
 rAlgo = ''
 rN = rA = rB = rL = rM = rS = rK = None
+
+randSel = 0
+randSelArr = []
 
 randomAlgorithms = None
 
@@ -25,8 +28,8 @@ def updateSelectedObjects():
 def updateSelectedMaterials():
     global selectedMaterials
     cmds.iconTextScrollList(selectedMaterialsList, edit=True, removeAll=True)
-    cmds.iconTextScrollList(selectedMaterialsList, edit=True, append=selectedMaterials)
-    cmds.ls(clear=True)
+    cmds.iconTextScrollList(selectedMaterialsList, edit=True, append=list(selectedMaterials))
+    cmds.select(clear=True)
 
 def addSelectedObjectsFromScene(*args):
     global selectedObjects
@@ -51,7 +54,7 @@ def removeAllObjects(*args):
 
 def addSelectedMaterialsFromHS(*args):
     global selectedMaterials
-    selectedMAterials = selectedMAterials.union(cmds.ls(long=True, selection=True))
+    selectedMaterials = selectedMaterials.union(cmds.ls(long=True, selection=True))
     updateSelectedMaterials()
     
 def removeSelectedMaterialsInHS(*args):
@@ -83,6 +86,12 @@ def _intRandParam(name):
     field = cmds.intField(minValue=-999999, maxValue=999999, step=1)
     cmds.setParent('..')
     return field
+    
+def randParamVal(param):
+    return cmds.intField(param, query=True, value=True)
+    
+def intRandParamVal(param):
+    return cmds.floatField(param, query=True, value=True)
 
 def enableRandParam(param):
     cmds.control(param, edit=True, enable=True)
@@ -123,14 +132,82 @@ def randomAlgoChanged(*args):
     elif rAlgo == 'ParetoVariate':
         for p in [rN, rB, rL, rM, rS, rK]:
             disableRandParam(p)
-        enableRandParam(nA)
+        enableRandParam(rA)
+
+def randNextMaterial():
+    global randSel
+    global randSellArr
+    
+    last = len(selectedMaterials) - 1
+    i = 0
+    
+    if rAlgo == 'Random':
+        i = random.randint(0, last)
+    elif rAlgo == 'Linear':
+        if randSel == last or randSel == -1:
+            randSel = 0
+        else:
+            randSel += 1
+            
+        i = randSel
+    elif rAlgo == 'Single Material':
+        if randSel == -1:
+            randSel = random.randint(0, last)
+            
+        i = randSel
+    elif rAlgo == 'N Materials':
+        if randSel == -1:
+            for i in range(0, intRandParam(rN)):
+                randSelArr.append(random.randint(0, last))
+                
+        i = random.choice(randSelArr)
+    elif rAlgo == 'Reversed Linear':
+        if randSel == 0 or randSel == -1:
+            randSel = last
+        else: 
+            randSel -= 1
+            
+        i = randSel
+        
+    elif rAlgo == 'Uniform':
+        pass
+    elif rAlgo == 'Linear Shuffle':
+        pass
+    elif rAlgo == 'Repeated Linear Shuffle':
+        pass
+    elif rAlgo == 'Triangular':
+        pass
+    elif rAlgo == 'BetaVariate':
+        pass
+    elif rAlgo == 'ExpoVariate':
+        pass
+    elif rAlgo == 'GammaVariate':
+        pass
+    elif rAlgo == 'Gaussian':
+        pass
+    elif rAlgo == 'LogNormVariate':
+        pass
+    elif rAlgo == 'NormalVariate':
+        pass
+    elif rAlgo == 'VonMisesVariate':
+        pass
+    elif rAlgo == 'ParetoVariate':
+        pass
+    elif rAlgo == 'WeiBullVariate':
+        pass
+        
+    return list(selectedMaterials)[i]
 
 def setMaterials(*args):
+    global randSel
+    global randSelArr
+    
+    randSel = -1
+    randSelArr = []
+    
     for obj in selectedObjects:
         cmds.select(obj)
-        # TODO: Implement rand algos
-        mat = random.choice(selectedMaterials)
-        cmds.hyperShade(assign=mat)
+        cmds.hyperShade(assign=randNextMaterial())
 
 cmds.window(title='RandMats', widthHeight=(262, 500), sizeable=False, maximizeButton=False)
 wrapper = cmds.rowColumnLayout(numberOfColumns=1, columnWidth=[(1, 262), (2, 262)], height=500)
