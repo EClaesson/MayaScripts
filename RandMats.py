@@ -76,14 +76,14 @@ def removeAllMaterials(*args):
 def _randParam(name):
     cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 50), (2, 200)])
     cmds.text(label=name + ':')
-    field = cmds.floatField(minValue=-999999.9, maxValue=999999.9, step=0.05)
+    field = cmds.floatField(minValue=-999999.9, maxValue=999999.9, step=0.05, enable=False)
     cmds.setParent('..')
     return field
     
 def _intRandParam(name):
     cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 50), (2, 200)])
     cmds.text(label=name + ':')
-    field = cmds.intField(minValue=-999999, maxValue=999999, step=1)
+    field = cmds.intField(minValue=-999999, maxValue=999999, step=1, enable=False)
     cmds.setParent('..')
     return field
     
@@ -99,40 +99,20 @@ def enableRandParam(param):
 def disableRandParam(param):
     cmds.control(param, edit=True, enable=False)
 
+def setEnabledRandParams(disabled, enabled):
+    for p in enabled:
+        enableRandParam(p)
+    for p in disabled:
+        disableRandParam(p)
+
 def randomAlgoChanged(*args):
     global rAlgo
     rAlgo = cmds.iconTextScrollList(randomAlgorithms, query=True, selectItem=True)[0]
 
     if rAlgo in ['Random', 'Linear', 'Single Material', 'Reversed Linear', 'Linear Shuffle', 'Repeated Linear Shuffle', 'Uniform']:
-        for p in [rN, rA, rB, rL, rM, rS, rK]:
-            disableRandParam(p)
+        setEnabledRandParams([rN, rA, rB, rL, rM, rS, rK], [])
     elif rAlgo == 'N Materials':
-        for p in [rA, rB, rL, rM, rS, rK]:
-            disableRandParam(p)
-        enableRandParam(rN)
-    elif rAlgo in ['BetaVariate', 'GammaVariate', 'WeiBullVariate']:
-        for p in [rN, rL, rM, rS, rK]:
-            disableRandParam(p)
-        for p in [rA, rB]:
-            enableRandParam(p)
-    elif rAlgo == 'ExpoVariate':
-        for p in [rN, rA, rB, rM, rS, rK]:
-            disableRandParam(p)
-        enableRandParam(rL)
-    elif rAlgo in ['Gaussian', 'LogNormVariate', 'NormalVariate']:
-        for p in [rN, rA, rB, rL, rK]:
-            disableRandParam(p)
-        for p in [rM, rS]:
-            enableRandParam(p)
-    elif rAlgo == 'VonMisesVariate':
-        for p in [rN, rA, rB, rL, rS]:
-            disableRandParam(p)
-        for p in [rM, rK]:
-            enableRandParam(p)
-    elif rAlgo == 'ParetoVariate':
-        for p in [rN, rB, rL, rM, rS, rK]:
-            disableRandParam(p)
-        enableRandParam(rA)
+        setEnabledRandParams([rA, rB, rL, rM, rS, rK], [rN])
 
 def randNextMaterial():
     global randSel
@@ -158,6 +138,10 @@ def randNextMaterial():
     elif rAlgo == 'N Materials':
         if randSel == -1:
             for i in range(0, intRandParam(rN)):
+                r = -1
+                while r == -1 or (r in randSelArr):
+                    r = random.randint(0, last)
+
                 randSelArr.append(random.randint(0, last))
                 
         i = random.choice(randSelArr)
@@ -170,31 +154,24 @@ def randNextMaterial():
         i = randSel
         
     elif rAlgo == 'Uniform':
-        pass
+        i = random.uniform(0, last)
     elif rAlgo == 'Linear Shuffle':
-        pass
+        if randSelArr == []:
+            randSelArr = range(last + 1)
+            random.shuffle(randSelArr)
+            
+        i = randSelArr.pop()
     elif rAlgo == 'Repeated Linear Shuffle':
-        pass
-    elif rAlgo == 'Triangular':
-        pass
-    elif rAlgo == 'BetaVariate':
-        pass
-    elif rAlgo == 'ExpoVariate':
-        pass
-    elif rAlgo == 'GammaVariate':
-        pass
-    elif rAlgo == 'Gaussian':
-        pass
-    elif rAlgo == 'LogNormVariate':
-        pass
-    elif rAlgo == 'NormalVariate':
-        pass
-    elif rAlgo == 'VonMisesVariate':
-        pass
-    elif rAlgo == 'ParetoVariate':
-        pass
-    elif rAlgo == 'WeiBullVariate':
-        pass
+        if randSelArr == []:
+            randSelArr = range(last + 1)
+            random.shuffle(randSelArr)
+            
+        if randSel == last:
+            randSel = 0
+        else:
+            randsel += 1
+            
+        i = randSel
         
     return list(selectedMaterials)[i]
 
@@ -235,17 +212,16 @@ cmds.setParent('..')
 childPats = cmds.rowColumnLayout(numberOfColumns=1)
 randomAlgorithms = cmds.iconTextScrollList(allowMultiSelection=False, height=200, append=[
     'Random', 'Linear', 'Single Material', 'N Materials', 'Reversed Linear', 'Uniform', 'Linear Shuffle',
-    'Repeated Linear Shuffle', 'Triangular', 'BetaVariate', 'ExpoVariate', 'GammaVariate', 'Gaussian',
-    'LogNormVariate', 'NormalVariate', 'VonMisesVariate', 'ParetoVariate', 'WeiBullVariate'],
+    'Repeated Linear Shuffle'],
     selectCommand=randomAlgoChanged)
 
 rN = _intRandParam('N')
-rA = _randParam('Alpha')
-rB = _randParam('Beta')
-rL = _randParam('Lambda')
-rM = _randParam('Mu')
-rS = _randParam('Sigma')
-rK = _randParam('Kappa')
+# rA = _randParam('Alpha')
+# rB = _randParam('Beta')
+# rL = _randParam('Lambda')
+# rM = _randParam('Mu')
+# rS = _randParam('Sigma')
+# rK = _randParam('Kappa')
 cmds.setParent('..')
 
 cmds.tabLayout(tabs, edit=True, tabLabel=((childObjs, 'Objects'), (childMats, 'Materials'), (childPats, 'Pattern')))
