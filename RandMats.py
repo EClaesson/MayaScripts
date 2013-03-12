@@ -20,6 +20,8 @@
 
 import maya.cmds as cmds
 import random
+import os
+import pickle
 
 selectedObjects = set()
 selectedMaterials = set()
@@ -40,12 +42,14 @@ def updateSelectedObjects():
     cmds.iconTextScrollList(selectedObjectsList, edit=True, removeAll=True)
     cmds.iconTextScrollList(selectedObjectsList, edit=True, append=list(selectedObjects))
     cmds.select(clear=True)
+    dumpObjects()
     
 def updateSelectedMaterials():
     global selectedMaterials
     cmds.iconTextScrollList(selectedMaterialsList, edit=True, removeAll=True)
     cmds.iconTextScrollList(selectedMaterialsList, edit=True, append=list(selectedMaterials))
     cmds.select(clear=True)
+    dumpMaterials()
 
 def addSelectedObjectsFromScene(*args):
     global selectedObjects
@@ -130,9 +134,10 @@ def randomAlgoChanged(*args):
     elif rAlgo == 'N Materials':
         setEnabledRandParams([rA, rB, rL, rM, rS, rK], [rN])
 
+    dumpPattern()
+
 def randNextMaterial():
-    global randSel
-    global randSellArr
+    global randSel, randSellArr
     
     last = len(selectedMaterials) - 1
     i = 0
@@ -192,15 +197,70 @@ def randNextMaterial():
     return list(selectedMaterials)[i]
 
 def setMaterials(*args):
-    global randSel
-    global randSelArr
+    global randSel, randSelArr
     
+    dumpPattern()
+
     randSel = -1
     randSelArr = []
     
     for obj in selectedObjects:
         cmds.select(obj)
         cmds.hyperShade(assign=randNextMaterial())
+
+def getHomeDir():
+    home = os.path.join(os.path.expanduser('~'), 'EClaessonMayaScripts', 'RandMats')
+    
+    if not os.path.exists(home):
+        os.makedirs(home)
+
+    return home
+
+def dumpObjects():
+    objOut = open(os.path.join(getHomeDir(), 'objects.pkl'), 'wb')
+    pickle.dump(selectedObjects, objOut)
+    objOut.close()
+
+def dumpMaterials():
+    matOut = open(os.path.join(getHomeDir(), 'materials.pkl'), 'wb')
+    pickle.dump(selectedMaterials, matOut)
+    matOut.close()
+
+def dumpPattern():
+    patOut = open(ps.path.join(getHomeDir(), 'pattern.pkl'), 'wb')
+    patList = [intRandParamVal(rN), randParamVal(rA), randParamVal(rB), randParamVal(rL), randParamVal(rM), randParamVal(rS), randParamVal(rK), rAlgo]
+    pickle.dump(patList, patOut)
+    patOut.close()
+
+def loadObjects():
+    global selectedObjects
+
+    objIn = open(os.path.join(getHomeDir(), 'objects.pkl'), 'rb')
+    selectedObjects = pickle.load(objIn)
+    objIn.close()
+    updateSelectedObjects()
+
+def loadMaterials():
+    global selectedMaterials
+
+    matIn = open(os.path.join(getHomeDir(), 'materials.pkl'), 'rb')
+    selectedMaterials = pickle.load(matIn)
+    objIn.close()
+    updateSelectedMaterials()
+
+def loadPattern():
+    global rN, rA, rB, rL, rM, rS, rK, rAlgo
+
+    patIn = open(os.path.join(getHomeDir(), 'pattern.pkl'), 'rb')
+    patList = pickle.load(patIn)
+    patIn.close()
+
+    rAlgo = patList.pop()
+    cmds.iconTextScrollList(randomAlgorithms, edit=True, selectItem=rAlgo)
+    for v in [rK, rS, rM, rL, rB, rA, ]:
+        cmds.floatField(v, edit=True, value=patList.pop())
+
+    cmds.intField(rN, edit=True, value=patList.pop())
 
 cmds.window(title='RandMats', widthHeight=(262, 500), sizeable=False, maximizeButton=False)
 wrapper = cmds.rowColumnLayout(numberOfColumns=1, columnWidth=[(1, 262), (2, 262)], height=500)
@@ -241,4 +301,12 @@ rN = _intRandParam('N')
 cmds.setParent('..')
 
 cmds.tabLayout(tabs, edit=True, tabLabel=((childObjs, 'Objects'), (childMats, 'Materials'), (childPats, 'Pattern')))
+
+try:
+    loadObjects()
+    loadMaterials()
+    loadPattern
+except:
+    pass
+
 cmds.showWindow()
