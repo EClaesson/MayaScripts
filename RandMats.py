@@ -245,7 +245,7 @@ def loadMaterials():
 
     matIn = open(os.path.join(getHomeDir(), 'materials.pkl'), 'rb')
     selectedMaterials = pickle.load(matIn)
-    objIn.close()
+    matIn.close()
     updateSelectedMaterials()
 
 def loadPattern():
@@ -257,7 +257,7 @@ def loadPattern():
 
     rAlgo = patList.pop()
     cmds.iconTextScrollList(randomAlgorithms, edit=True, selectItem=rAlgo)
-    for v in [rK, rS, rM, rL, rB, rA, ]:
+    for v in [rK, rS, rM, rL, rB, rA]:
         cmds.floatField(v, edit=True, value=patList.pop())
 
     cmds.intField(rN, edit=True, value=patList.pop())
@@ -292,21 +292,22 @@ randomAlgorithms = cmds.iconTextScrollList(allowMultiSelection=False, height=200
     selectCommand=randomAlgoChanged)
 
 rN = _intRandParam('N')
-# rA = _randParam('Alpha')
-# rB = _randParam('Beta')
-# rL = _randParam('Lambda')
-# rM = _randParam('Mu')
-# rS = _randParam('Sigma')
-# rK = _randParam('Kappa')
+rA = _randParam('Alpha')
+rB = _randParam('Beta')
+rL = _randParam('Lambda')
+rM = _randParam('Mu')
+rS = _randParam('Sigma')
+rK = _randParam('Kappa')
+
 cmds.setParent('..')
 
 cmds.tabLayout(tabs, edit=True, tabLabel=((childObjs, 'Objects'), (childMats, 'Materials'), (childPats, 'Pattern')))
 
+cmds.showWindow()
+
 try:
     loadObjects()
     loadMaterials()
-    loadPattern
-except:
+    loadPattern()
+except EOFError:
     pass
-
-cmds.showWindow()
