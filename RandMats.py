@@ -227,7 +227,7 @@ def dumpMaterials():
     matOut.close()
 
 def dumpPattern():
-    patOut = open(ps.path.join(getHomeDir(), 'pattern.pkl'), 'wb')
+    patOut = open(os.path.join(getHomeDir(), 'pattern.pkl'), 'wb')
     patList = [intRandParamVal(rN), randParamVal(rA), randParamVal(rB), randParamVal(rL), randParamVal(rM), randParamVal(rS), randParamVal(rK), rAlgo]
     pickle.dump(patList, patOut)
     patOut.close()
