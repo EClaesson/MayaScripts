@@ -202,7 +202,7 @@ def setMaterials(*args):
     if len(selectedObjects) == 0:
         print('### No objects selected!')
     elif len(selectedMaterials) == 0:
-        print('### No naterials selected!')
+        print('### No materials selected!')
     elif rAlgo == 'N Materials' and intRandParamVal(rN) > len(selectedMaterials):
         print('### N is higher than selected material count!')
     else:
