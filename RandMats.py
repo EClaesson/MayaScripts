@@ -1,6 +1,6 @@
-# RandMats
+# RandMats.py
 # Maya 2013 - Python 2.6.4
-# https://github.com/EClaesson/RandMats
+# https://github.com/EClaesson/MayaScripts
 
 
 # Copyright (C) 2013 Emanuel Claesson
