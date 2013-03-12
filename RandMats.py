@@ -108,10 +108,10 @@ def _intRandParam(name):
     return field
     
 def randParamVal(param):
-    return cmds.intField(param, query=True, value=True)
+    return cmds.floatField(param, query=True, value=True)
     
 def intRandParamVal(param):
-    return cmds.floatField(param, query=True, value=True)
+    return cmds.intField(param, query=True, value=True)
 
 def enableRandParam(param):
     cmds.control(param, edit=True, enable=True)
@@ -158,7 +158,7 @@ def randNextMaterial():
         i = randSel
     elif rAlgo == 'N Materials':
         if randSel == -1:
-            for i in range(0, intRandParam(rN)):
+            for i in range(0, intRandParamVal(rN)):
                 r = -1
                 while r == -1 or (r in randSelArr):
                     r = random.randint(0, last)
@@ -261,6 +261,8 @@ def loadPattern():
         cmds.floatField(v, edit=True, value=patList.pop())
 
     cmds.intField(rN, edit=True, value=patList.pop())
+    
+    randomAlgoChanged(None)
 
 cmds.window(title='RandMats', widthHeight=(262, 500), sizeable=False, maximizeButton=False)
 wrapper = cmds.rowColumnLayout(numberOfColumns=1, columnWidth=[(1, 262), (2, 262)], height=500)
