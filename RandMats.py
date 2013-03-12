@@ -199,14 +199,21 @@ def randNextMaterial():
 def setMaterials(*args):
     global randSel, randSelArr
     
-    dumpPattern()
+    if len(selectedObjects) == 0:
+        print('### No objects selected!')
+    elif len(selectedMaterials) == 0:
+        print('### No naterials selected!')
+    elif rAlgo == 'N Materials' and intRandParamVal(rN) > len(selectedMaterials):
+        print('### N is higher than selected material count!')
+    else:
+        dumpPattern()
 
-    randSel = -1
-    randSelArr = []
-    
-    for obj in selectedObjects:
-        cmds.select(obj)
-        cmds.hyperShade(assign=randNextMaterial())
+        randSel = -1
+        randSelArr = []
+        
+        for obj in selectedObjects:
+            cmds.select(obj)
+            cmds.hyperShade(assign=randNextMaterial())
 
 def getHomeDir():
     home = os.path.join(os.path.expanduser('~'), 'EClaessonMayaScripts', 'RandMats')
