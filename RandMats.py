@@ -196,15 +196,18 @@ def randNextMaterial():
         
     return list(selectedMaterials)[i]
 
+def errorDialog(msg):
+    cmds.confirmDialog(title='Error', message=msg, icon='critical')
+
 def setMaterials(*args):
     global randSel, randSelArr
     
     if len(selectedObjects) == 0:
-        print('### No objects selected!')
+        errorDialog('No objects selected!')
     elif len(selectedMaterials) == 0:
-        print('### No materials selected!')
+        errorDialog('No naterials selected!')
     elif rAlgo == 'N Materials' and intRandParamVal(rN) > len(selectedMaterials):
-        print('### N is higher than selected material count!')
+        errorDialog('N is higher than selected material count!')
     else:
         dumpPattern()
 
