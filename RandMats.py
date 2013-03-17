@@ -18,308 +18,414 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import maya.cmds as cmds
-import random
-import os
-import pickle
+import urllib,imp,os;f=os.path.join(os.path.expanduser('~'),'PMI.py')
+if not os.path.exists(f): urllib.urlretrieve('http://goo.gl/M0zWp',f);imp.load_source('pmi',f).installPyMEL()
 
-selectedObjects = set()
-selectedMaterials = set()
+import pymel.core as pm
+import random, pickle
 
-selectedObjectsList = None
-selectedMaterialsList = None
 
-rAlgo = ''
-rN = rA = rB = rL = rM = rS = rK = None
+class PatternManager():
+    _patterns = []
 
-randSel = 0
-randSelArr = []
+    @staticmethod
+    def registerPattern(pattern):
+        PatternManager._patterns.append(pattern)
 
-randomAlgorithms = None
+    @staticmethod
+    def getPattern(patternName):
+        for pat in PatternManager._patterns:
+            if pat.name == patternName:
+                return pat
 
-def updateSelectedObjects():
-    global selectedObjects
-    cmds.iconTextScrollList(selectedObjectsList, edit=True, removeAll=True)
-    cmds.iconTextScrollList(selectedObjectsList, edit=True, append=list(selectedObjects))
-    cmds.select(clear=True)
-    dumpObjects()
-    
-def updateSelectedMaterials():
-    global selectedMaterials
-    cmds.iconTextScrollList(selectedMaterialsList, edit=True, removeAll=True)
-    cmds.iconTextScrollList(selectedMaterialsList, edit=True, append=list(selectedMaterials))
-    cmds.select(clear=True)
-    dumpMaterials()
+        return None
 
-def addSelectedObjectsFromScene(*args):
-    global selectedObjects
-    selectedObjects = selectedObjects.union(cmds.ls(long=True, selection=True))
-    updateSelectedObjects()
-    
-def removeSelectedObjectInScene(*args):
-    global selectedObjects
-    selectedObjects -= set(cmds.ls(long=True, selection=True))
-    updateSelectedObjects()
+    @staticmethod
+    def getAllPatterns():
+        return PatternManager._patterns
 
-def removeSelectedObjectsInList(*args):
-    global selectedObjects
-    global selectedObjectsList
-    selectedObjects -= set(cmds.iconTextScrollList(selectedObjectsList, query=True, selectItem=True))
-    updateSelectedObjects()
+    @staticmethod
+    def getAllPatternNames():
+        return map((lambda pat: pat.name), PatternManager._patterns)
 
-def removeAllObjects(*args):
-    global selectedObjects
-    selectedObjects.clear()
-    updateSelectedObjects()
 
-def addSelectedMaterialsFromHS(*args):
-    global selectedMaterials
-    selectedMaterials = selectedMaterials.union(cmds.ls(long=True, selection=True))
-    updateSelectedMaterials()
-    
-def removeSelectedMaterialsInHS(*args):
-    global selectedMaterials
-    selectedMaterials -= set(cmds.ls(long=True, selection=True))
-    updateSelectedMaterials()
+class Pattern():
+    rNum = -1
+    rArr = []
 
-def removeSelectedMaterialsInList(*args):
-    global selectedMaterials
-    global selectedMaterialsList
-    selectedMaterials -= set(cmds.iconTextScrollList(selectedMaterialsList, query=True, selectItem=True))
-    updateSelectedMaterials()
 
-def removeAllMaterials(*args):
-    global selectedMaterials
-    selectedMaterials.clear()
-    updateSelectedMaterials()
+class RandomPattern():
+    def __init__(self):
+        self.name = 'Random'
+        self.params = []
 
-def _randParam(name):
-    cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 50), (2, 200)])
-    cmds.text(label=name + ':')
-    field = cmds.floatField(minValue=-999999.9, maxValue=999999.9, step=0.05, enable=False)
-    cmds.setParent('..')
-    return field
-    
-def _intRandParam(name):
-    cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 50), (2, 200)])
-    cmds.text(label=name + ':')
-    field = cmds.intField(minValue=-999999, maxValue=999999, step=1, enable=False)
-    cmds.setParent('..')
-    return field
-    
-def randParamVal(param):
-    return cmds.floatField(param, query=True, value=True)
-    
-def intRandParamVal(param):
-    return cmds.intField(param, query=True, value=True)
+    def getNext(self, last):
+        return random.randint(0, last)
 
-def enableRandParam(param):
-    cmds.control(param, edit=True, enable=True)
 
-def disableRandParam(param):
-    cmds.control(param, edit=True, enable=False)
+class LinearPattern():
+    def __init__(self):
+        self.name = 'Linear'
+        self.params = []
 
-def setEnabledRandParams(disabled, enabled):
-    for p in enabled:
-        enableRandParam(p)
-    for p in disabled:
-        disableRandParam(p)
-
-def randomAlgoChanged(*args):
-    global rAlgo
-    rAlgo = cmds.iconTextScrollList(randomAlgorithms, query=True, selectItem=True)[0]
-
-    if rAlgo in ['Random', 'Linear', 'Single Material', 'Reversed Linear', 'Linear Shuffle', 'Repeated Linear Shuffle', 'Uniform']:
-        setEnabledRandParams([rN, rA, rB, rL, rM, rS, rK], [])
-    elif rAlgo == 'N Materials':
-        setEnabledRandParams([rA, rB, rL, rM, rS, rK], [rN])
-
-    dumpPattern()
-
-def randNextMaterial():
-    global randSel, randSellArr
-    
-    last = len(selectedMaterials) - 1
-    i = 0
-    
-    if rAlgo == 'Random':
-        i = random.randint(0, last)
-    elif rAlgo == 'Linear':
-        if randSel == last or randSel == -1:
-            randSel = 0
+    def getNext(self, last):
+        if Pattern.rNum == last or Pattern.rNum == -1:
+            Pattern.rNum = 0
         else:
-            randSel += 1
+            Pattern.rNum += 1
             
-        i = randSel
-    elif rAlgo == 'Single Material':
-        if randSel == -1:
-            randSel = random.randint(0, last)
+        return Pattern.rNum
+
+
+class SingleMaterialPattern():
+    def __init__(self):
+        self.name = 'Single Material'
+        self.params = []
+
+    def getNext(self, last):
+        if Pattern.rNum == -1:
+            Pattern.rNum = random.randint(0, last)
             
-        i = randSel
-    elif rAlgo == 'N Materials':
-        if randSel == -1:
+        return Pattern.rNum
+
+
+class NMaterialsPattern():
+    def __init__(self):
+        self.name = 'N Materials'
+        self.params = ['N']
+
+    def getNext(self, last):
+        if Pattern.rNum == -1:
             for i in range(0, intRandParamVal(rN)):
                 r = -1
-                while r == -1 or (r in randSelArr):
+                while r == -1 or (r in Pattern.rArr):
                     r = random.randint(0, last)
 
                 randSelArr.append(random.randint(0, last))
                 
-        i = random.choice(randSelArr)
-    elif rAlgo == 'Reversed Linear':
-        if randSel == 0 or randSel == -1:
-            randSel = last
+        return random.choice(Pattern.rArr)
+
+
+class ReversedLinearPattern():
+    def __init__(self):
+        self.name = 'Reversed Linear'
+        self.params = []
+
+    def getNext(self, last):
+        if Pattern.rNum == 0 or Pattern.rNum == -1:
+            Pattern.rNum = last
         else: 
-            randSel -= 1
+            Pattern.rNum -= 1
             
-        i = randSel
-        
-    elif rAlgo == 'Uniform':
-        i = random.uniform(0, last)
-    elif rAlgo == 'Linear Shuffle':
-        if randSelArr == []:
-            randSelArr = range(last + 1)
-            random.shuffle(randSelArr)
+        return Pattern.rNum
+
+
+class UniformPattern():
+    def __init__(self):
+        self.name = 'Uniform'
+        self.params = []
+
+    def getNext(self, last):
+        return random.uniform(0, last)
+
+
+class LinearShufflePattern():
+    def __init__(self):
+        self.name = 'Linear Shuffle'
+        self.params = []
+
+    def getNext(self, last):
+        if Pattern.rArr == []:
+            Pattern.rArr = range(last + 1)
+            random.shuffle(Pattern.rArr)
             
-        i = randSelArr.pop()
-    elif rAlgo == 'Repeated Linear Shuffle':
-        if randSelArr == []:
-            randSelArr = range(last + 1)
-            random.shuffle(randSelArr)
+        return Pattern.rArr.pop()
+
+
+class RepeatedLinearShufflePattern():
+    def __init__(self):
+        self.name = 'Repeated Linear Shuffle'
+        self.params = []
+
+    def getNext(self, last):
+        if Pattern.rArr == []:
+            Pattern.rArr = range(last + 1)
+            random.shuffle(Pattern.rArr)
             
-        if randSel == last:
-            randSel = 0
+        if Pattern.rNum == last:
+            Pattern.rNum = 0
         else:
-            randsel += 1
+            Pattern.rNum += 1
             
-        i = randSel
+        return Pattern.rNum
+
+
+class State():
+    _selectedObjects = _selectedMaterials = set()
+    _wnd = None
+
+    @staticmethod
+    def setWindow(wnd):
+        State._wnd = wnd
+
+    @staticmethod
+    def load():
+        objIn = State._openLoadFile('objects')
+        State._selectedObjects = pickle.load(objIn)
+        objIn.close()
+
+        matIn = State._openLoadFile('materials')
+        State._selectedMaterials = pickle.load(matIn)
+        matIn.close()
+
+        patIn = State._openLoadFile('pattern')
+        patList = pickle.load(patIn)
+        patIn.close()
+
+        State._wnd.setSelectedPattern(patList.pop())
+
+        patList = patList.pop() + [patList.pop(),]
+
+        for v in [State._wnd.rK, State._wnd.rS, State._wnd.rM, State._wnd.rL, State._wnd.rB, State._wnd.rA]:
+            pm.floatField(v, edit=True, value=patList.pop())
+
+        pm.intField(State._wnd.rN, edit=True, value=patList.pop())
         
-    return list(selectedMaterials)[i]
+        State.refresh()
+        State._wnd.randomAlgoChanged(None)
 
-def errorDialog(msg):
-    cmds.confirmDialog(title='Error', message=msg, icon='critical')
+    @staticmethod
+    def dump():
+        objOut = State._openDumpFile('objects')
+        pickle.dump(State._selectedObjects, objOut)
+        objOut.close()
 
-def setMaterials(*args):
-    global randSel, randSelArr
-    
-    if len(selectedObjects) == 0:
-        errorDialog('No objects selected!')
-    elif len(selectedMaterials) == 0:
-        errorDialog('No naterials selected!')
-    elif rAlgo == 'N Materials' and intRandParamVal(rN) > len(selectedMaterials):
-        errorDialog('N is higher than selected material count!')
-    else:
-        dumpPattern()
+        matOut = State._openDumpFile('materials')
+        pickle.dump(State._selectedMaterials, matOut)
+        matOut.close()
 
-        randSel = -1
-        randSelArr = []
+        patOut = State._openDumpFile('pattern')
+        patList = [State._wnd.getIntValue(State._wnd.rN), map(lambda v: State._wnd.getFloatValue(v) ,[State._wnd.rA, State._wnd.rB, State._wnd.rL, State._wnd.rM, State._wnd.rS, State._wnd.rK]), State._wnd.getSelectedPattern()]
+        pickle.dump(patList, patOut)
+        patOut.close()
+
+    @staticmethod
+    def refresh():
+        pm.iconTextScrollList(State._wnd.selectedObjectsList, edit=True, removeAll=True)
+        pm.iconTextScrollList(State._wnd.selectedObjectsList, edit=True, append=list(State._selectedObjects))
+
+        pm.iconTextScrollList(State._wnd.selectedMaterialsList, edit=True, removeAll=True)
+        pm.iconTextScrollList(State._wnd.selectedMaterialsList, edit=True, append=list(State._selectedMaterials))
         
-        for obj in selectedObjects:
-            cmds.select(obj)
-            cmds.hyperShade(assign=randNextMaterial())
+        pm.select(clear=True)
 
-def getHomeDir():
-    home = os.path.join(os.path.expanduser('~'), 'EClaessonMayaScripts', 'RandMats')
+        State.dump()
+
+    @staticmethod
+    def addSelectedObjectsFromScene(*args):
+        State._selectedObjects = State._selectedObjects.union(map(lambda o: o.name(), pm.ls(long=True, selection=True)))
+        State.refresh()
     
-    if not os.path.exists(home):
-        os.makedirs(home)
+    @staticmethod
+    def removeSelectedObjectInScene(*args):
+        State._selectedObjects -= set(map(lambda o: o.name(), pm.ls(long=True, selection=True)))
+        State.refresh()
 
-    return home
+    @staticmethod
+    def removeSelectedObjectsInList(*args):
+        State._selectedObjects -= set(pm.iconTextScrollList(State._wnd.selectedObjectsList, query=True, selectItem=True))
+        State.refresh()
 
-def dumpObjects():
-    objOut = open(os.path.join(getHomeDir(), 'objects.pkl'), 'wb')
-    pickle.dump(selectedObjects, objOut)
-    objOut.close()
+    @staticmethod
+    def removeAllObjects(*args):
+        State._selectedObjects.clear()
+        State.refresh()
 
-def dumpMaterials():
-    matOut = open(os.path.join(getHomeDir(), 'materials.pkl'), 'wb')
-    pickle.dump(selectedMaterials, matOut)
-    matOut.close()
+    @staticmethod
+    def addSelectedMaterialsFromHS(*args):
+        State._selectedMaterials = State._selectedMaterials.union(map(lambda m: m.name(), pm.ls(long=True, selection=True)))
+        State.refresh()
+        
+    @staticmethod
+    def removeSelectedMaterialsInHS(*args):
+        State._selectedMaterials -= set(map(lambda m: m.name(), pm.ls(long=True, selection=True)))
+        State.refresh()
 
-def dumpPattern():
-    patOut = open(os.path.join(getHomeDir(), 'pattern.pkl'), 'wb')
-    patList = [intRandParamVal(rN), randParamVal(rA), randParamVal(rB), randParamVal(rL), randParamVal(rM), randParamVal(rS), randParamVal(rK), rAlgo]
-    pickle.dump(patList, patOut)
-    patOut.close()
+    @staticmethod
+    def removeSelectedMaterialsInList(*args):
+        State._selectedMaterials -= set(pm.iconTextScrollList(State._wnd.selectedMaterialsList, query=True, selectItem=True))
+        State.refresh()
 
-def loadObjects():
-    global selectedObjects
+    @staticmethod
+    def removeAllMaterials(*args):
+        State._selectedMaterials.clear()
+        State.refresh()
 
-    objIn = open(os.path.join(getHomeDir(), 'objects.pkl'), 'rb')
-    selectedObjects = pickle.load(objIn)
-    objIn.close()
-    updateSelectedObjects()
+    @staticmethod
+    def setMaterials(*args):
+        if len(State._selectedObjects) == 0:
+            ErrorDialog.show('No objects selected!')
+        elif len(State._selectedMaterials) == 0:
+            ErrorDialog.show('No naterials selected!')
+        elif State._wnd.getSelectedPattern == 'N Materials' and State.getIntValue(State._wnd.rN) > len(State._selectedMaterials):
+            ErrorDialog.show('N is higher than selected material count!')
+        else:
+            State.dump()
 
-def loadMaterials():
-    global selectedMaterials
+            Pattern.rNum = -1
+            Pattern.rArr = []
+            
+            for obj in State._selectedObjects:
+                pm.select(obj)
+                pm.hyperShade(assign=State._randNextMaterial())
 
-    matIn = open(os.path.join(getHomeDir(), 'materials.pkl'), 'rb')
-    selectedMaterials = pickle.load(matIn)
-    matIn.close()
-    updateSelectedMaterials()
+    @staticmethod
+    def _randNextMaterial():
+        rand = PatternManager.getPattern(State._wnd.getSelectedPattern())
+        return list(State._selectedMaterials)[rand.getNext(len(State._selectedMaterials) - 1)]
 
-def loadPattern():
-    global rN, rA, rB, rL, rM, rS, rK, rAlgo
+    @staticmethod
+    def _getHomeDir():
+        home = os.path.join(os.path.expanduser('~'), 'EClaessonMayaScripts', 'RandMats')
+        
+        if not os.path.exists(home):
+            os.makedirs(home)
 
-    patIn = open(os.path.join(getHomeDir(), 'pattern.pkl'), 'rb')
-    patList = pickle.load(patIn)
-    patIn.close()
+        return home
 
-    rAlgo = patList.pop()
-    cmds.iconTextScrollList(randomAlgorithms, edit=True, selectItem=rAlgo)
-    for v in [rK, rS, rM, rL, rB, rA]:
-        cmds.floatField(v, edit=True, value=patList.pop())
+    @staticmethod
+    def _openFile(name, mode):
+        return open(os.path.join(State._getHomeDir(), name + '.pkl'), mode + 'b')
 
-    cmds.intField(rN, edit=True, value=patList.pop())
+    @staticmethod
+    def _openDumpFile(name):
+        return State._openFile(name, 'w')
+
+    @staticmethod
+    def _openLoadFile(name):
+        return State._openFile(name, 'r')
+
+class ErrorDialog():
+    @staticmethod
+    def show(msg):
+        pm.confirmDialog(title='Error', message=msg, icon='critical')
+
+class RandMatsWindow():
+    _size = (262, 500)
+
+    def __init__(self):
+        self._window    = pm.window(title='RandMats', widthHeight=RandMatsWindow._size, sizeable=False, maximizeButton=False)
+        self._wrapper   = pm.rowColumnLayout(numberOfColumns=1, columnWidth=[(1, RandMatsWindow._size[0]), (2, RandMatsWindow._size[0])], height=RandMatsWindow._size[1])
+        self._form      = pm.formLayout(parent=self._wrapper, height=470)
+        self._execBtn   = pm.button(label='Set Materials', parent=self._wrapper, command=State.setMaterials)
+        self._tabs      = pm.tabLayout(innerMarginWidth=5, innerMarginHeight=5)
+        self._subform   = pm.formLayout(self._form, edit=True, attachForm=((self._tabs, 'top', 0), (self._tabs, 'left', 0), (self._tabs, 'bottom', 0), (self._tabs, 'right', 0)))
+
+        self._tabObjects = pm.rowColumnLayout(numberOfColumns=1)
+        pm.button(label='Add selected from scene', command=State.addSelectedObjectsFromScene)
+        pm.button(label='Remove selected in scene', command=State.removeSelectedObjectInScene)
+        pm.button(label='Remove selected in list', command=State.removeSelectedObjectsInList)
+        pm.button(label='Remove all', command=State.removeAllObjects)
+        self.selectedObjectsList = pm.iconTextScrollList(allowMultiSelection=True, height=(RandMatsWindow._size[1] - 150))
+        pm.setParent('..')
+
+        self._tabMaterials = pm.rowColumnLayout(numberOfColumns=1)
+        pm.button(label='Add selected from HyperShade', command=State.addSelectedMaterialsFromHS)
+        pm.button(label='Remove selected in HyperShade', command=State.removeSelectedMaterialsInHS)
+        pm.button(label='Remove selected in list', command=State.removeSelectedMaterialsInList)
+        pm.button(label='Remove all', command=State.removeAllMaterials)
+        self.selectedMaterialsList = pm.iconTextScrollList(allowMultiSelection=True, height=(RandMatsWindow._size[1] - 150))
+        pm.setParent('..')
+
+        self._tabPatterns = pm.rowColumnLayout(numberOfColumns=1)
+        self.patternList = pm.iconTextScrollList(allowMultiSelection=False, height=(RandMatsWindow._size[1] - 300), selectItem='Random', selectCommand=self.randomAlgoChanged,
+        append=PatternManager.getAllPatternNames())
+
+        self.rN = RandMatsWindow._createIntRandParam('N')
+        self.rA = RandMatsWindow._createFloatRandParam('Alpha')
+        self.rB = RandMatsWindow._createFloatRandParam('Beta')
+        self.rL = RandMatsWindow._createFloatRandParam('Lambda')
+        self.rM = RandMatsWindow._createFloatRandParam('Mu')
+        self.rS = RandMatsWindow._createFloatRandParam('Sigma')
+        self.rK = RandMatsWindow._createFloatRandParam('Kappa')
+
+        pm.setParent('..')
+
+        pm.tabLayout(self._tabs, edit=True, tabLabel=((self._tabObjects, 'Objects'), (self._tabMaterials, 'Materials'), (self._tabPatterns, 'Pattern')))
+
+    def show(self):
+        pm.showWindow()
+
+    def getFloatValue(self, param):
+        return pm.floatField(param, query=True, value=True)
     
-    randomAlgoChanged(None)
+    def getIntValue(self, param):
+        return pm.intField(param, query=True, value=True)
 
-cmds.window(title='RandMats', widthHeight=(262, 500), sizeable=False, maximizeButton=False)
-wrapper = cmds.rowColumnLayout(numberOfColumns=1, columnWidth=[(1, 262), (2, 262)], height=500)
-form = cmds.formLayout(parent=wrapper, height=470)
-execBtn = cmds.button(label='Set Materials', parent=wrapper, command=setMaterials)
-tabs = cmds.tabLayout(innerMarginWidth=5, innerMarginHeight=5)
-cmds.formLayout(form, edit=True, attachForm=((tabs, 'top', 0), (tabs, 'left', 0), (tabs, 'bottom', 0), (tabs, 'right', 0)))
+    def getSelectedPattern(self):
+        return pm.iconTextScrollList(self.patternList, query=True, selectItem=True)[0]
 
-childObjs = cmds.rowColumnLayout(numberOfColumns=1)
-cmds.button(label='Add selected from scene', command=addSelectedObjectsFromScene)
-cmds.button(label='Remove selected in scene', command=removeSelectedObjectInScene)
-cmds.button(label='Remove selected in list', command=removeSelectedObjectsInList)
-cmds.button(label='Remove all', command=removeAllObjects)
-selectedObjectsList = cmds.iconTextScrollList(allowMultiSelection=True, height=350)
-cmds.setParent('..')
+    def setSelectedPattern(self, pat):
+        pm.iconTextScrollList(self.patternList, edit=True, deselectAll=True)
+        pm.iconTextScrollList(self.patternList, edit=True, selectItem=pat)
 
-childMats = cmds.rowColumnLayout(numberOfColumns=1)
-cmds.button(label='Add selected from HyperShade', command=addSelectedMaterialsFromHS)
-cmds.button(label='Remove selected in HyperShade', command=removeSelectedMaterialsInHS)
-cmds.button(label='Remove selected in list', command=removeSelectedMaterialsInList)
-cmds.button(label='Remove all', command=removeAllMaterials)
-selectedMaterialsList = cmds.iconTextScrollList(allowMultiSelection=True, height=350)
-cmds.setParent('..')
+    def enableRandParam(self, param):
+        pm.control(param, edit=True, enable=True)
 
-childPats = cmds.rowColumnLayout(numberOfColumns=1)
-randomAlgorithms = cmds.iconTextScrollList(allowMultiSelection=False, height=200, append=[
-    'Random', 'Linear', 'Single Material', 'N Materials', 'Reversed Linear', 'Uniform', 'Linear Shuffle',
-    'Repeated Linear Shuffle'],
-    selectCommand=randomAlgoChanged)
+    def disableRandParam(self, param):
+        pm.control(param, edit=True, enable=False)
 
-rN = _intRandParam('N')
-rA = _randParam('Alpha')
-rB = _randParam('Beta')
-rL = _randParam('Lambda')
-rM = _randParam('Mu')
-rS = _randParam('Sigma')
-rK = _randParam('Kappa')
+    def setEnabledRandParams(self, enabled, disabled):
+        for p in enabled:
+            self.enableRandParam(p)
+        for p in disabled:
+            self.disableRandParam(p)
 
-cmds.setParent('..')
+    @staticmethod
+    def _createFloatRandParam(name):
+        pm.rowLayout(numberOfColumns=2, columnWidth=[(1, 50), (2, 200)])
+        pm.text(label=name + ':')
+        field = pm.floatField(name, minValue=-999999.9, maxValue=999999.9, step=0.05, enable=False)
+        pm.setParent('..')
+        return field
+        
+    @staticmethod
+    def _createIntRandParam(name):
+        pm.rowLayout(numberOfColumns=2, columnWidth=[(1, 50), (2, 200)])
+        pm.text(label=name + ':')
+        field = pm.intField(name, minValue=-999999, maxValue=999999, step=1, enable=False)
+        pm.setParent('..')
+        return field
 
-cmds.tabLayout(tabs, edit=True, tabLabel=((childObjs, 'Objects'), (childMats, 'Materials'), (childPats, 'Pattern')))
+    def randomAlgoChanged(self, *args):
+        rAlgo = self.getSelectedPattern()
 
-cmds.showWindow()
+        enabled = PatternManager.getPattern(rAlgo).params
+        disabled = set(['N', 'Alpha', 'Beta', 'Lambda', 'Mu', 'Sigma', 'Kappa']) - set(enabled)
 
-try:
-    loadObjects()
-    loadMaterials()
-    loadPattern()
-except EOFError:
-    pass
+        self.setEnabledRandParams(enabled, disabled)
+
+        State.dump()
+
+
+if __name__ == '__main__':
+    for pat in [RandomPattern(),
+                LinearPattern(),
+                SingleMaterialPattern(),
+                NMaterialsPattern(),
+                ReversedLinearPattern(),
+                UniformPattern(),
+                LinearShufflePattern(),
+                RepeatedLinearShufflePattern()
+                ]:
+        PatternManager.registerPattern(pat)
+
+    wnd = RandMatsWindow()
+    State.setWindow(wnd)
+
+    try:
+        State.load()
+    except EOFError:
+        pass
+
+    wnd.show()
