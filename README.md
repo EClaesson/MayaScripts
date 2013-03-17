@@ -3,11 +3,13 @@
 		<tr>
 			<th>Script</th>
 			<th>Description</th>
+			<th>Status</th>
 		</tr>
 		
 		<tr>
 			<td>RandMats.py</td>
 			<td>Script to randomly assign a selected set of materials to a selected set of objects.</td>
+			<td>**Done**</td>
 		</tr>
 	</tbody>
 </table>
