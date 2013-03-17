@@ -24,7 +24,6 @@ if not os.path.exists(f): urllib.urlretrieve('http://goo.gl/M0zWp',f);imp.load_s
 import pymel.core as pm
 import random, pickle
 
-
 class PatternManager():
     _patterns = []
 
@@ -425,7 +424,7 @@ if __name__ == '__main__':
 
     try:
         State.load()
-    except EOFError:
+    except:
         pass
 
     wnd.show()
