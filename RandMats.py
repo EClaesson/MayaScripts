@@ -407,7 +407,7 @@ class RandMatsWindow():
         State.dump()
 
 
-if __name__ == '__main__':
+def openRandMats():
     for pat in [RandomPattern(),
                 LinearPattern(),
                 SingleMaterialPattern(),
@@ -428,3 +428,7 @@ if __name__ == '__main__':
         pass
 
     wnd.show()
+
+
+if __name__ == '__main__':
+    openRandMats()
