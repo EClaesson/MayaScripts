@@ -19,5 +19,11 @@
 			<td>**Finishing touches**</td>
 			<td></td>
 		</tr>
+		<tr>
+			<td>SeparationSlide.py</td>
+			<td>Script to make objects move away from its origin.</td>
+			<td>**Finishing touches**</td>
+			<td></td>
+		</tr>
 	</tbody>
 </table>
